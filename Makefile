@@ -2,21 +2,24 @@
 CXXFLAGS += -std=c++11 -Wno-conversion
 
 # Default to using system's default version of python
-PYTHON_BIN     ?= python
+PYTHON_BIN     ?= python3
 PYTHON_CONFIG  := $(PYTHON_BIN)-config
 PYTHON_INCLUDE ?= $(shell $(PYTHON_CONFIG) --includes)
 EXTRA_FLAGS    := $(PYTHON_INCLUDE)
-LDFLAGS        += $(shell $(PYTHON_CONFIG) --libs)
+# NOTE: Since python3.8, the correct invocation is `python3-config --libs --embed`. 
+# So of course the proper way to get python libs for embedding now is to
+# invoke that, check if it crashes, and fall back to just `--libs` if it does.
+LDFLAGS        += $(shell if $(PYTHON_CONFIG) --libs --embed >/dev/null; then $(PYTHON_CONFIG) --libs --embed; else $(PYTHON_CONFIG) --libs; fi)
 
 # Either finds numpy or set -DWITHOUT_NUMPY
 EXTRA_FLAGS     += $(shell $(PYTHON_BIN) $(CURDIR)/numpy_flags.py)
-WITHOUT_NUMPY   := $(findstring $(CXXFLAGS), WITHOUT_NUMPY)
+WITHOUT_NUMPY   := $(findstring $(EXTRA_FLAGS), WITHOUT_NUMPY)
 
 # Examples requiring numpy support to compile
-EXAMPLES_NUMPY  := surface
+EXAMPLES_NUMPY  := surface colorbar
 EXAMPLES        := minimal basic modern animation nonblock xkcd quiver bar \
-	           fill_inbetween fill update subplot2grid colorbar lines3d \
-                   $(if WITHOUT_NUMPY,,$(EXAMPLES_NUMPY))
+	           fill_inbetween fill update subplot2grid lines3d \
+                   $(if $(WITHOUT_NUMPY),,$(EXAMPLES_NUMPY))
 
 # Prefix every example with 'examples/build/'
 EXAMPLE_TARGETS := $(patsubst %,examples/build/%,$(EXAMPLES))
